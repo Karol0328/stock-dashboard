@@ -61,8 +61,12 @@ stock-dashboard/
 - Max Pain 計算：對每個履約價 K，計算 call writer 損失 + put writer 損失，最小值即 max pain
 
 ### 新聞
-- **Google News RSS** — 台股、美股、三星、海力士
+- **Google News RSS** — 台股、美股、三星、海力士、漢他病毒（英文，8 則）
 - **Yahoo Finance news** via `yfinance.Ticker.news` — 三星、海力士補充英文新聞
+
+### 漢他病毒疫情追蹤
+- 新聞面板底部獨立卡片，顯示 Google News hantavirus 最新資訊
+- 卡片右上角附有 **𝕏 @outbreakupdates** 連結按鈕（https://x.com/outbreakupdates）
 
 ## 注意事項
 
