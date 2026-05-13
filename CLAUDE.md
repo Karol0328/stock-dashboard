@@ -25,7 +25,9 @@ stock-dashboard/
 ├── templates/
 │   └── index.html      # 單頁前端（原生 JS，無框架）
 ├── requirements.txt
+├── vercel.json         # Vercel 部署設定
 ├── start.sh            # 一鍵啟動腳本
+├── auto_sync.sh        # 檔案變更自動 commit + push
 └── CLAUDE.md
 ```
 
