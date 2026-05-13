@@ -1,6 +1,13 @@
 # Stock Dashboard
 
-即時股市看板：台股、美股、韓股（三星 / SK 海力士）。
+即時股市看板：台股、美股、韓股（三星 / SK 海力士）+ 漢他病毒疫情追蹤。
+
+## 部署
+
+- **本地開發**：`./start.sh`（http://localhost:5001）
+- **正式環境**：Vercel — https://stock-dashboard-seven-sigma.vercel.app
+- **GitHub**：https://github.com/Karol0328/stock-dashboard
+- **自動同步**：執行 `./auto_sync.sh` 可監控檔案變更，自動 commit + push 到 GitHub，Vercel 收到後自動重新部署
 
 ## 啟動
 
