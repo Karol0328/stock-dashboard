@@ -38,7 +38,7 @@ stock-dashboard/
 | `GET /api/taiwan` | 加權指數、台積電、台指期、TXO最大痛點 | 30s |
 | `GET /api/us` | S&P/NASDAQ 期貨 + 市值前十大 | 30s |
 | `GET /api/korea` | 三星電子、SK 海力士 | 30s |
-| `GET /api/news` | 四個市場的最新新聞 | 5min |
+| `GET /api/news` | 四個市場的最新新聞 + 漢他病毒疫情新聞 | 5min |
 
 ## 資料來源（全部免費、無需 API Key）
 
