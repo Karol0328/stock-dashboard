@@ -366,7 +366,7 @@ def api_korea():
 
 @app.route("/api/news")
 def api_news():
-    with ThreadPoolExecutor(max_workers=8) as ex:
+    with ThreadPoolExecutor(max_workers=9) as ex:
         f_tw_g   = ex.submit(fetch_gnews,   "台股 今日", "zh-TW", 6)
         f_us_yf  = ex.submit(fetch_yf_news, "^GSPC", 3)
         f_us_g   = ex.submit(fetch_gnews,   "US stock market", "en-US", 3)
@@ -374,12 +374,14 @@ def api_news():
         f_ss_g   = ex.submit(fetch_gnews,   "三星電子 股票", "zh-TW", 3)
         f_hx_yf  = ex.submit(fetch_yf_news, "000660.KS", 3)
         f_hx_g   = ex.submit(fetch_gnews,   "SK海力士 股票", "zh-TW", 3)
+        f_hanta  = ex.submit(fetch_gnews,   "hantavirus", "en-US", 8)
     return jsonify({
-        "taiwan":    f_tw_g.result(),
-        "us":        f_us_yf.result() + f_us_g.result(),
-        "samsung":   f_ss_yf.result() + f_ss_g.result(),
-        "hynix":     f_hx_yf.result() + f_hx_g.result(),
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "taiwan":     f_tw_g.result(),
+        "us":         f_us_yf.result() + f_us_g.result(),
+        "samsung":    f_ss_yf.result() + f_ss_g.result(),
+        "hynix":      f_hx_yf.result() + f_hx_g.result(),
+        "hantavirus": f_hanta.result(),
+        "timestamp":  datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     })
 
 
