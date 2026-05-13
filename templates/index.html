@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>股市即時看板</title>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+      --border: #30363d; --text: #e6edf3; --muted: #8b949e;
+      --green: #3fb950; --red: #f85149; --blue: #58a6ff;
+      --yellow: #e3b341; --purple: #bc8cff; --accent: #1f6feb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text);
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', sans-serif; }
+
+    /* ── header ── */
+    header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 24px; display: flex; align-items: center;
+      justify-content: space-between; position: sticky; top: 0; z-index: 100;
+    }
+    header h1 { font-size: 18px; font-weight: 700; color: var(--blue); }
+    .hdr-right { display: flex; align-items: center; gap: 12px; }
+    #ts { font-size: 12px; color: var(--muted); }
+    #cd { font-size: 11px; color: var(--muted); background: var(--surface2);
+          border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; }
+    #rbtn {
+      background: var(--accent); color: #fff; border: none; border-radius: 6px;
+      padding: 6px 14px; font-size: 13px; cursor: pointer; display: flex;
+      align-items: center; gap: 6px; transition: opacity .2s;
+    }
+    #rbtn:hover { opacity: .85; }
+    #rbtn.loading { opacity: .6; cursor: not-allowed; }
+    .spin { display: inline-block; width: 13px; height: 13px;
+            border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+            border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── tabs ── */
+    .container { max-width: 1440px; margin: 0 auto; padding: 20px 24px; }
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
+    .tab { background: none; border: none; color: var(--muted); font-size: 14px;
+           padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent;
+           margin-bottom: -1px; transition: color .15s, border-color .15s; }
+    .tab.on { color: var(--blue); border-bottom-color: var(--blue); }
+    .tab:hover:not(.on) { color: var(--text); }
+    .panel { display: none; }
+    .panel.on { display: block; }
+
+    /* ── market badge ── */
+    .mbadge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 12px; font-size: 12px; margin-bottom: 20px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .dot.open  { background: var(--green); animation: pulse 2s infinite; }
+    .dot.closed { background: var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── cards ── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── hero row (TAIEX + TX + Max Pain) ── */
+    .hero-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    @media(max-width:900px){ .hero-row { grid-template-columns: 1fr; } }
+    .hero-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    .hc-label { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                letter-spacing: .06em; margin-bottom: 6px; }
+    .hc-price { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+    .hc-change { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+    .hc-meta { display: flex; gap: 14px; flex-wrap: wrap; }
+    .hc-meta-item { font-size: 12px; color: var(--muted); }
+    .hc-meta-item span { color: var(--text); font-weight: 500; }
+
+    /* max pain card */
+    .mp-value { font-size: 38px; font-weight: 800; color: var(--yellow); margin-bottom: 4px; }
+    .mp-note  { font-size: 12px; color: var(--muted); }
+
+    /* ── futures pair (US) ── */
+    .futures-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    @media(max-width:700px){ .futures-row { grid-template-columns: 1fr; } }
+
+    /* ── stock table ── */
+    .stbl { width: 100%; border-collapse: collapse; }
+    .stbl th {
+      text-align: left; font-size: 11px; color: var(--muted); font-weight: 500;
+      padding: 6px 8px; border-bottom: 1px solid var(--border); text-transform: uppercase;
+    }
+    .stbl th:not(:first-child) { text-align: right; }
+    .stbl td {
+      padding: 10px 8px; font-size: 13px; border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .stbl tr:last-child td { border-bottom: none; }
+    .stbl td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+    .sname { font-weight: 600; font-size: 13px; }
+    .ssym  { font-size: 11px; color: var(--muted); }
+    .price { font-size: 14px; font-weight: 600; }
+
+    .pos { color: var(--green); }
+    .neg { color: var(--red);   }
+    .chip {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 11px; font-weight: 600;
+    }
+    .chip.pos { background: rgba(63,185,80,.15);  color: var(--green); }
+    .chip.neg { background: rgba(248,81,73,.15);  color: var(--red); }
+    .vol { font-size: 12px; color: var(--muted); }
+
+    /* ── KR big cards ── */
+    .kr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media(max-width:700px){ .kr-grid { grid-template-columns: 1fr; } }
+    .kr-card { background: var(--surface2); border: 1px solid var(--border);
+               border-radius: 10px; padding: 18px; }
+    .kr-name { font-size: 17px; font-weight: 700; margin-bottom: 3px; }
+    .kr-sym  { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .kr-price { font-size: 30px; font-weight: 700; margin-bottom: 6px; }
+    .kr-meta  { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+    .kr-meta-item { font-size: 12px; color: var(--muted); }
+    .kr-meta-item span { color: var(--text); font-weight: 500; }
+
+    /* ── news ── */
+    .news-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media(max-width:900px){ .news-grid { grid-template-columns: 1fr; } }
+    .news-list { list-style: none; }
+    .ni { padding: 11px 0; border-bottom: 1px solid var(--border); }
+    .ni:last-child { border-bottom: none; }
+    .ni a { color: var(--text); text-decoration: none; font-size: 13px;
+             line-height: 1.5; display: block; margin-bottom: 4px; }
+    .ni a:hover { color: var(--blue); }
+    .ni-meta { font-size: 11px; color: var(--muted); display: flex; gap: 10px; }
+    .ni-src  { font-weight: 500; }
+
+    /* skeleton */
+    .sk { background: linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);
+          background-size: 200% 100%; animation: shim 1.5s infinite;
+          border-radius: 4px; height: 16px; margin: 8px 0; }
+    @keyframes shim { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* rank badge */
+    .rank { font-size: 11px; color: var(--muted); min-width: 20px; text-align: right; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>📈 股市即時看板</h1>
+  <div class="hdr-right">
+    <span id="cd">30s</span>
+    <span id="ts">—</span>
+    <button id="rbtn" onclick="refreshAll()">
+      <span class="spin" id="sp" style="display:none"></span>重新整理
+    </button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab on"  onclick="sw('tw',this)">🇹🇼 台股</button>
+    <button class="tab"     onclick="sw('us',this)">🇺🇸 美股</button>
+    <button class="tab"     onclick="sw('kr',this)">🇰🇷 韓股</button>
+    <button class="tab"     onclick="sw('news',this)">📰 新聞</button>
+  </div>
+
+  <!-- ══ TAIWAN ══ -->
+  <div class="panel on" id="panel-tw">
+    <!-- market badge -->
+    <div id="badge-tw"></div>
+    <!-- hero row -->
+    <div class="hero-row">
+      <div class="hero-card" id="hc-taiex"><div class="sk"></div><div class="sk"></div></div>
+      <div class="hero-card" id="hc-tx"><div class="sk"></div><div class="sk"></div></div>
+      <div class="hero-card" id="hc-mp"><div class="sk"></div><div class="sk"></div></div>
+    </div>
+    <!-- TSMC -->
+    <div class="card">
+      <div class="card-title">🏭 台積電 (2330.TW)</div>
+      <table class="stbl">
+        <thead><tr>
+          <th>名稱</th><th>現價</th><th>漲跌</th><th>漲跌幅</th>
+          <th>最高</th><th>最低</th><th>成交量</th>
+        </tr></thead>
+        <tbody id="tb-tsmc"><tr><td colspan="7"><div class="sk"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ US ══ -->
+  <div class="panel" id="panel-us">
+    <div id="badge-us"></div>
+    <!-- Futures -->
+    <div class="futures-row" id="us-futures-row">
+      <div class="hero-card"><div class="sk"></div><div class="sk"></div></div>
+      <div class="hero-card"><div class="sk"></div><div class="sk"></div></div>
+    </div>
+    <!-- Top 10 -->
+    <div class="card">
+      <div class="card-title">🏆 美股市值前十大</div>
+      <table class="stbl">
+        <thead><tr>
+          <th>#</th><th>名稱</th><th>現價</th><th>漲跌</th><th>漲跌幅</th>
+          <th>最高</th><th>最低</th><th>成交量</th>
+        </tr></thead>
+        <tbody id="tb-us10"><tr><td colspan="8"><div class="sk"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ KOREA ══ -->
+  <div class="panel" id="panel-kr">
+    <div id="badge-kr"></div>
+    <div class="card">
+      <div class="card-title">🇰🇷 韓國個股</div>
+      <div class="kr-grid" id="kr-grid">
+        <div class="kr-card"><div class="sk"></div><div class="sk"></div></div>
+        <div class="kr-card"><div class="sk"></div><div class="sk"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ NEWS ══ -->
+  <div class="panel" id="panel-news">
+    <div class="news-grid">
+      <div>
+        <div class="card">
+          <div class="card-title">🇹🇼 台股新聞</div>
+          <ul class="news-list" id="news-tw"><li><div class="sk"></div></li></ul>
+        </div>
+        <div class="card">
+          <div class="card-title">🇺🇸 美股新聞</div>
+          <ul class="news-list" id="news-us"><li><div class="sk"></div></li></ul>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">📱 三星電子新聞</div>
+          <ul class="news-list" id="news-samsung"><li><div class="sk"></div></li></ul>
+        </div>
+        <div class="card">
+          <div class="card-title">💾 SK 海力士新聞</div>
+          <ul class="news-list" id="news-hynix"><li><div class="sk"></div></li></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── utils ── */
+const $ = id => document.getElementById(id);
+const fmt  = n  => (n === 'N/A' || n == null) ? '—' : Number(n).toLocaleString();
+const fmtVol = v => {
+  if (!v) return '—';
+  if (v >= 1e8) return (v/1e8).toFixed(1)+'億';
+  if (v >= 1e4) return (v/1e4).toFixed(0)+'萬';
+  return v.toLocaleString();
+};
+const sign = pos => pos ? '+' : '';
+const cls  = pos => pos ? 'pos' : 'neg';
+
+/* ── tabs ── */
+function sw(name, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+  $('panel-' + name).classList.add('on');
+  el.classList.add('on');
+}
+
+/* ── badge ── */
+function badge(id, open, label) {
+  $(id).innerHTML = `<div class="mbadge">
+    <span class="dot ${open ? 'open' : 'closed'}"></span>
+    <span>${label} ${open ? '● 交易中' : '○ 已收盤'}</span>
+  </div>`;
+}
+
+/* ── hero card builder ── */
+function heroCard(el, label, price, change, change_pct, positive, meta = [], extra = '') {
+  const c = cls(positive);
+  const metaHtml = meta.map(m =>
+    `<div class="hc-meta-item">${m.label} <span>${m.val}</span></div>`
+  ).join('');
+  el.innerHTML = `
+    <div class="hc-label">${label}</div>
+    <div class="hc-price ${c}">${fmt(price)}</div>
+    <div class="hc-change ${c}">${sign(positive)}${fmt(change)} (${sign(positive)}${Number(change_pct).toFixed(2)}%)</div>
+    ${meta.length ? `<div class="hc-meta">${metaHtml}</div>` : ''}
+    ${extra}`;
+}
+
+function maxPainCard(el, mpData) {
+  const { max_pain, strikes, near_month, data_date, label, error } = mpData;
+  if (max_pain) {
+    const expiry = near_month ? near_month.replace(/(\d{4})(\d{2})/, '$1/$2') : '';
+    const dateNote = label === '今日' ? '今日OI' : `${label}OI`;
+    el.innerHTML = `
+      <div class="hc-label">TXO 選擇權最大痛點</div>
+      <div class="mp-value">${max_pain.toLocaleString()}</div>
+      <div class="mp-note">到期月 ${expiry} · ${dateNote} · ${strikes} 履約價</div>`;
+  } else {
+    el.innerHTML = `
+      <div class="hc-label">TXO 選擇權最大痛點</div>
+      <div class="mp-value" style="font-size:22px;color:var(--muted)">—</div>
+      <div class="mp-note">${error || '資料暫不可用'}</div>`;
+  }
+}
+
+/* ── stock table row ── */
+function stockRow(s, rank) {
+  const c = cls(s.positive);
+  const rankCell = rank != null ? `<td class="rank">${rank}</td>` : '';
+  return `<tr>
+    ${rankCell}
+    <td><div class="sname">${s.name}</div><div class="ssym">${s.symbol}</div></td>
+    <td class="price">${fmt(s.price)}</td>
+    <td class="${c}">${sign(s.positive)}${fmt(s.change)}</td>
+    <td><span class="chip ${c}">${sign(s.positive)}${Number(s.change_pct).toFixed(2)}%</span></td>
+    <td>${fmt(s.high)}</td>
+    <td>${fmt(s.low)}</td>
+    <td class="vol">${fmtVol(s.volume)}</td>
+  </tr>`;
+}
+
+/* ── KR card ── */
+function krCard(s) {
+  const c = cls(s.positive);
+  return `<div class="kr-card">
+    <div class="kr-name">${s.name}</div>
+    <div class="kr-sym">${s.symbol}</div>
+    <div class="kr-price ${c}">${fmt(s.price)} <small style="font-size:14px;font-weight:400">${s.currency}</small></div>
+    <span class="chip ${c}">${sign(s.positive)}${fmt(s.change)} (${sign(s.positive)}${Number(s.change_pct).toFixed(2)}%)</span>
+    <div class="kr-meta">
+      <div class="kr-meta-item">最高 <span>${fmt(s.high)}</span></div>
+      <div class="kr-meta-item">最低 <span>${fmt(s.low)}</span></div>
+      <div class="kr-meta-item">成交量 <span>${fmtVol(s.volume)}</span></div>
+    </div>
+  </div>`;
+}
+
+/* ── news item ── */
+function newsItems(list) {
+  if (!list || !list.length) return '<li style="color:var(--muted);font-size:13px;padding:12px 0">暫無新聞</li>';
+  return list.map(n => `<li class="ni">
+    <a href="${n.link||'#'}" target="_blank" rel="noopener">${n.title||'（無標題）'}</a>
+    <div class="ni-meta">
+      ${n.source ? `<span class="ni-src">${n.source}</span>` : ''}
+      ${n.published ? `<span>${n.published.substring(0,25)}</span>` : ''}
+    </div>
+  </li>`).join('');
+}
+
+/* ── data loaders ── */
+async function loadTaiwan() {
+  const d = await fetch('/api/taiwan').then(r => r.json());
+
+  badge('badge-tw', d.status.day, '台股');
+
+  // TAIEX hero
+  heroCard($('hc-taiex'), '🇹🇼 台股加權指數',
+    d.taiex.price, d.taiex.change, d.taiex.change_pct, d.taiex.positive,
+    [{ label:'最高', val: fmt(d.taiex.high) },
+     { label:'最低', val: fmt(d.taiex.low)  }]);
+
+  // TX Futures hero
+  const tx = d.tx_futures;
+  if (tx.price !== 'N/A') {
+    // Determine session label from contract suffix
+    const isMorning = (tx.contract || '').includes('-M') || (tx.source === 'TAIFEX' && (tx.date || '') < d.taiex.symbol);
+    const session = tx.volume > 10000 ? '日盤' : '夜盤';
+    const tStr = tx.time ? tx.time.replace(/(\d{2})(\d{2})(\d{2})/, '$1:$2') : '';
+    const extra = `<div style="margin-top:8px;font-size:11px;color:var(--muted)">
+      ${tx.contract || ''} · ${tStr} · 成交量 ${(tx.volume||0).toLocaleString()}
+    </div>`;
+    heroCard($('hc-tx'), '📊 台指期 (全日盤)',
+      tx.price, tx.change, tx.change_pct, tx.positive,
+      [{ label:'最高', val: fmt(tx.high) }, { label:'最低', val: fmt(tx.low) }],
+      extra);
+  } else {
+    $('hc-tx').innerHTML = `
+      <div class="hc-label">📊 台指期 (全日盤)</div>
+      <div class="hc-price" style="color:var(--muted);font-size:22px">—</div>
+      <div class="mp-note">交易時段外 / 資料暫不可用</div>`;
+  }
+
+  // Max Pain
+  maxPainCard($('hc-mp'), d.max_pain);
+
+  // TSMC table
+  $('tb-tsmc').innerHTML = stockRow(d.tsmc);
+
+  $('ts').textContent = '更新: ' + d.timestamp;
+}
+
+async function loadUS() {
+  const d = await fetch('/api/us').then(r => r.json());
+
+  badge('badge-us', d.status, '美股');
+
+  // Futures cards
+  const fr = $('us-futures-row');
+  fr.innerHTML = d.futures.map(f => {
+    const c = cls(f.positive);
+    return `<div class="hero-card">
+      <div class="hc-label">${f.name}</div>
+      <div class="hc-price ${c}">${fmt(f.price)}</div>
+      <div class="hc-change ${c}">${sign(f.positive)}${fmt(f.change)} (${sign(f.positive)}${Number(f.change_pct).toFixed(2)}%)</div>
+      <div class="hc-meta">
+        <div class="hc-meta-item">最高 <span>${fmt(f.high)}</span></div>
+        <div class="hc-meta-item">最低 <span>${fmt(f.low)}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Top 10 table
+  $('tb-us10').innerHTML = d.top10.map((s, i) => stockRow(s, i + 1)).join('');
+}
+
+async function loadKorea() {
+  const d = await fetch('/api/korea').then(r => r.json());
+  badge('badge-kr', d.status, '韓股');
+  $('kr-grid').innerHTML = d.stocks.map(krCard).join('');
+}
+
+async function loadNews() {
+  const d = await fetch('/api/news').then(r => r.json());
+  $('news-tw').innerHTML     = newsItems(d.taiwan);
+  $('news-us').innerHTML     = newsItems(d.us);
+  $('news-samsung').innerHTML = newsItems(d.samsung);
+  $('news-hynix').innerHTML  = newsItems(d.hynix);
+}
+
+/* ── countdown & refresh ── */
+let cdSecs = 30, cdTimer;
+function startCD() {
+  clearInterval(cdTimer);
+  cdSecs = 30;
+  cdTimer = setInterval(() => {
+    cdSecs--;
+    $('cd').textContent = `下次更新 ${cdSecs}s`;
+    if (cdSecs <= 0) refreshAll();
+  }, 1000);
+}
+
+async function refreshAll() {
+  const btn = $('rbtn'), sp = $('sp');
+  btn.classList.add('loading');
+  sp.style.display = 'inline-block';
+  await Promise.all([loadTaiwan(), loadUS(), loadKorea()]);
+  btn.classList.remove('loading');
+  sp.style.display = 'none';
+  startCD();
+}
+
+// Boot
+refreshAll();
+loadNews();
+setInterval(loadNews, 5 * 60 * 1000);
+</script>
+</body>
+</html>
