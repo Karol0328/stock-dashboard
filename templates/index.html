@@ -446,10 +446,11 @@ async function loadKorea() {
 
 async function loadNews() {
   const d = await fetch('/api/news').then(r => r.json());
-  $('news-tw').innerHTML     = newsItems(d.taiwan);
-  $('news-us').innerHTML     = newsItems(d.us);
-  $('news-samsung').innerHTML = newsItems(d.samsung);
-  $('news-hynix').innerHTML  = newsItems(d.hynix);
+  $('news-tw').innerHTML        = newsItems(d.taiwan);
+  $('news-us').innerHTML        = newsItems(d.us);
+  $('news-samsung').innerHTML   = newsItems(d.samsung);
+  $('news-hynix').innerHTML     = newsItems(d.hynix);
+  $('news-hantavirus').innerHTML = newsItems(d.hantavirus);
 }
 
 /* ── countdown & refresh ── */
